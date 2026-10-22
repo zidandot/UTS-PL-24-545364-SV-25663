@@ -1,4 +1,4 @@
-name: Continuous Integration (CI)
+name: CI/CD Pipeline
 
 on:
   push:
@@ -10,7 +10,6 @@ jobs:
   backend-test:
     name: Backend Test (Laravel)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -33,11 +32,13 @@ jobs:
           cp .env.example .env
           php artisan key:generate
           php artisan test
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   frontend-build:
     name: Frontend Build (Vue.js)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -52,3 +53,42 @@ jobs:
           cd frontend
           npm ci
           npm run build
+
+  deploy:
+    name: Build & Push Docker Images to GHCR
+    needs: [backend-test, frontend-build]
+    # Syarat e: Hanya berjalan saat push/merge terjadi di branch main
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/uts-p1-545364-backend:latest
+            ghcr.io/${{ github.repository_owner }}/uts-p1-545364-backend:${{ github.sha }}
+
+      - name: Build & Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/uts-p1-545364-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/uts-p1-545364-frontend:${{ github.sha }}
