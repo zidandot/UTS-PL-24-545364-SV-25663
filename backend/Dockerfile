@@ -1,4 +1,9 @@
-FROM php:8.2-fpm-alpine
+FROM composer:latest as composer-stage
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
+
+FROM php:8.2-fpm-alpine as production-stage
 
 RUN apk update && apk add --no-cache \
     zip \
@@ -6,16 +11,18 @@ RUN apk update && apk add --no-cache \
     curl \
     libpng-dev \
     oniguruma-dev \
-    libxml2-dev
-
-RUN docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
-
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+    libxml2-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
 
 WORKDIR /var/www
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
+COPY --from=composer-stage /app/vendor ./vendor
+
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+
+USER www-data
 
 EXPOSE 9000
+CMD ["php-fpm"]
