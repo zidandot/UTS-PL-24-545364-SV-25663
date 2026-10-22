@@ -1,0 +1,559 @@
+{
+  "info": {
+    "_postman_id": "b6f1c2a4-7d3e-4f8a-9c1b-2e5d6a7f8b90",
+    "name": "Library Management API - Laravel 11 + Sanctum",
+    "description": "Koleksi Postman untuk RESTful API Sistem Perpustakaan (Library Management).\n\nCara pakai:\n1. Jalankan `php artisan serve` (default http://127.0.0.1:8000).\n2. Import file ini ke Postman.\n3. Jalankan request `Login` pada folder 1. Token Bearer otomatis disimpan ke collection variable `token`.\n4. Jalankan request CRUD pada folder 2.\n5. Folder 3 berisi skenario negatif (401) dan Logout.\n\nAkun demo: demo@library.test / password\n\nSemua request memakai Bearer Token melalui collection-level Authorization, kecuali Login (noauth) dan request negatif tanpa token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "book_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "book_isbn",
+      "value": "9780132350884",
+      "type": "string"
+    },
+    {
+      "key": "auth_user_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "description": "Login untuk mendapatkan Bearer Token. Token disimpan otomatis ke collection variable `token`.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Mengembalikan Bearer Token', function () {",
+                  "    pm.expect(body.data.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.data.token_type).to.eql('Bearer');",
+                  "});",
+                  "",
+                  "pm.test('Data user ikut dikembalikan', function () {",
+                  "    pm.expect(body.data.user.email).to.eql('demo@library.test');",
+                  "});",
+                  "",
+                  "// Simpan token untuk request berikutnya.",
+                  "pm.collectionVariables.set('token', body.data.token);",
+                  "pm.collectionVariables.set('auth_user_id', body.data.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"demo@library.test\",\n    \"password\": \"password\",\n    \"device_name\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "POST /api/login\n\nBody:\n- email (required)\n- password (required)\n- device_name (optional)\n\nRespons sukses: 200 OK berisi `data.token`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User (Me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Mengembalikan user yang sedang login', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data.email).to.eql('demo@library.test');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "me"
+              ]
+            },
+            "description": "GET /api/me\n\nContoh endpoint terproteksi: membutuhkan header `Authorization: Bearer {{token}}`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Books (CRUD)",
+      "description": "Seluruh request pada folder ini otomatis memakai Bearer Token dari collection variable `token`.",
+      "item": [
+        {
+          "name": "Get All Books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Data buku berupa array', function () {",
+                  "    pm.expect(body.data).to.be.an('array');",
+                  "    pm.expect(body.meta.total).to.eql(body.data.length);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "description": "GET /api/books\n\nMenampilkan seluruh daftar buku.\n\nFilter opsional: `?search=clean&category=Teknologi&status=available`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Book",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ISBN unik setiap kali request dijalankan.",
+                  "pm.collectionVariables.set('book_isbn', '978' + Date.now().toString().slice(-10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Buku berhasil dibuat dengan status available', function () {",
+                  "    pm.expect(body.data.id).to.be.a('number');",
+                  "    pm.expect(body.data.title).to.eql('Clean Code');",
+                  "    pm.expect(body.data.status).to.eql('available');",
+                  "});",
+                  "",
+                  "// Simpan id buku baru untuk request Detail / Update / Delete.",
+                  "pm.collectionVariables.set('book_id', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Clean Code\",\n    \"author\": \"Robert C. Martin\",\n    \"isbn\": \"{{book_isbn}}\",\n    \"category\": \"Teknologi\",\n    \"status\": \"available\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/books",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "description": "POST /api/books\n\nRespons sukses: 201 Created.\nValidasi gagal (title/author kosong): 422 Unprocessable Content."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Book Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Detail buku sesuai dengan book_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(String(body.data.id)).to.eql(String(pm.collectionVariables.get('book_id')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books",
+                "{{book_id}}"
+              ]
+            },
+            "description": "GET /api/books/{id}\n\nMenampilkan detail satu buku. Jika tidak ada: 404 Not Found."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Book (Borrowed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Status buku berubah menjadi borrowed', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data.status).to.eql('borrowed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Clean Code (Edisi Revisi)\",\n    \"status\": \"borrowed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books",
+                "{{book_id}}"
+              ]
+            },
+            "description": "PUT /api/books/{id}\n\nMengubah data dan/atau status buku (available <-> borrowed)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Buku berhasil dihapus', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(String(body.data.id)).to.eql(String(pm.collectionVariables.get('book_id')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books",
+                "{{book_id}}"
+              ]
+            },
+            "description": "DELETE /api/books/{id}\n\nMenghapus buku. Hanya user pemilik buku (user_id) yang diizinkan; selain itu 403 Forbidden."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Negative Scenarios & Logout",
+      "description": "Contoh skenario Bearer Token tidak disertakan / tidak valid (401) dan proses logout.",
+      "item": [
+        {
+          "name": "Get Books Without Token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Pesan error dalam format JSON', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('Unauthenticated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "description": "GET /api/books tanpa header Authorization.\n\nRespons: 401 Unauthorized (JSON)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Books With Invalid Token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "token-tidak-valid",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "description": "GET /api/books dengan Bearer Token palsu.\n\nRespons: 401 Unauthorized (JSON)."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Token berhasil dicabut', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('Logout berhasil');",
+                  "});",
+                  "",
+                  "// Token sudah tidak berlaku; kosongkan variable agar jelas.",
+                  "pm.collectionVariables.unset('token');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            },
+            "description": "POST /api/logout\n\nMencabut token yang sedang dipakai. Setelah ini, jalankan Login lagi untuk mengakses endpoint terproteksi."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
