@@ -1,4 +1,4 @@
-FROM composer:latest as composer-stage
+FROM composer:2.8.12 as composer-stage
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
