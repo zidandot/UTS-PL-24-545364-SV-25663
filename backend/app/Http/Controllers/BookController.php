@@ -7,14 +7,11 @@ use App\Http\Requests\UpdateBookRequest;
 use App\Models\Book;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log; 
+use Exception;
 
 class BookController extends Controller
 {
-    /**
-     * Display a listing of the books.
-     *
-     * Optional query params: ?search=, ?category=, ?status=available|borrowed
-     */
     public function index(Request $request): JsonResponse
     {
         $books = Book::query()
@@ -46,22 +43,36 @@ class BookController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created book in storage.
-     */
     public function store(StoreBookRequest $request): JsonResponse
     {
-        $book = $request->user()->books()->create($request->validated());
+        try {
+            $book = $request->user()->books()->create($request->validated());
 
-        return response()->json([
-            'message' => 'Buku berhasil ditambahkan.',
-            'data' => $book->load('user:id,name,email'),
-        ], 201);
+            Log::info('Pengguna berhasil menyimpan data buku baru', [
+                'user_id' => $request->user()->id,
+                'action' => 'create_book',
+                'book_id' => $book->id,
+                'reason' => 'Data input valid dan berhasil dimasukkan ke tabel basis data'
+            ]);
+
+            return response()->json([
+                'message' => 'Buku berhasil ditambahkan.',
+                'data' => $book->load('user:id,name,email'),
+            ], 201);
+
+        } catch (Exception $e) {
+            Log::error('Sistem gagal menghubungi basis data saat menyimpan buku', [
+                'user_id' => $request->user()->id,
+                'action' => 'create_book_db_error',
+                'reason' => 'Terjadi gangguan koneksi atau kegagalan query database: ' . $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan pada server database.',
+            ], 503);
+        }
     }
 
-    /**
-     * Display the specified book.
-     */
     public function show(Book $book): JsonResponse
     {
         return response()->json([
@@ -70,14 +81,18 @@ class BookController extends Controller
         ]);
     }
 
-    /**
-     * Update the specified book in storage.
-     */
     public function update(UpdateBookRequest $request, Book $book): JsonResponse
     {
         $this->ensureUserOwnsBook($request, $book);
 
         $book->update($request->validated());
+
+        Log::info('Pengguna berhasil memperbarui data buku', [
+            'user_id' => $request->user()->id,
+            'action' => 'update_book',
+            'book_id' => $book->id,
+            'reason' => 'Pengguna adalah pemilik sah dan data pembaruan valid'
+        ]);
 
         return response()->json([
             'message' => 'Buku berhasil diperbarui.',
@@ -85,32 +100,40 @@ class BookController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified book from storage.
-     */
     public function destroy(Request $request, Book $book): JsonResponse
     {
         $this->ensureUserOwnsBook($request, $book);
 
+        $bookId = $book->id;
         $book->delete();
+
+        Log::info('Pengguna berhasil menghapus data buku', [
+            'user_id' => $request->user()->id,
+            'action' => 'delete_book',
+            'book_id' => $bookId,
+            'reason' => 'Pengguna adalah pemilik sah dan permintaan hapus dieksekusi'
+        ]);
 
         return response()->json([
             'message' => 'Buku berhasil dihapus.',
             'data' => [
-                'id' => $book->id,
+                'id' => $bookId,
             ],
         ]);
     }
 
-    /**
-     * Only the user who registered a book may modify or delete it.
-     */
     private function ensureUserOwnsBook(Request $request, Book $book): void
     {
-        abort_if(
-            $book->user_id !== $request->user()->id,
-            403,
-            'Anda tidak berhak mengubah atau menghapus buku milik user lain.'
-        );
+        if ($book->user_id !== $request->user()->id) {
+            Log::warning('Peringatan keamanan: pengguna mencoba memodifikasi buku milik user lain', [
+                'user_id' => $request->user()->id,
+                'owner_id' => $book->user_id,
+                'book_id' => $book->id,
+                'action' => 'unauthorized_book_modification',
+                'reason' => 'ID pengguna yang login tidak cocok dengan pemilik terdaftar buku ini'
+            ]);
+
+            abort(403, 'Anda tidak berhak mengubah atau menghapus buku milik user lain.');
+        }
     }
 }
