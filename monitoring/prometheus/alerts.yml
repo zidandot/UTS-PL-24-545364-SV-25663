@@ -1,0 +1,12 @@
+groups:
+  - name: application-availability
+    rules:
+      - alert: ApplicationServiceUnavailable
+        expr: up{job="nginx-exporter"} == 0 or up{job="backend-health"} == 0 or nginx_up == 0 or probe_success{job="backend-health"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Layanan aplikasi tidak tersedia"
+          description: "Pemeriksaan HTTP mendeteksi backend atau frontend tidak tersedia selama lebih dari satu menit."
+          action: "Langkah pertama: periksa status container dengan `docker compose ps backend frontend db`, lalu baca log backend dengan `docker compose logs --tail=100 backend`."
