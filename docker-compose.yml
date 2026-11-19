@@ -29,7 +29,7 @@ services:
     container_name: app-backend
     restart: always
     healthcheck:
-      test: ["CMD", "php", "-r", "$$res = @file_get_contents('http://localhost/health'); if ($$res === false) exit(1); $$data = json_decode($$res, true); if ($$data['status'] !== 'healthy') exit(1);"]
+      test: ["CMD", "php", "-r", "$$res = @file_get_contents('http://localhost/api/health'); if ($$res === false) exit(1); $$data = json_decode($$res, true); if ($$data['status'] !== 'healthy') exit(1);"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -165,7 +165,7 @@ services:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
     volumes:
-      - /:/host:ro,rslave
+      - /:/host:ro
     networks:
       - app-net
 
